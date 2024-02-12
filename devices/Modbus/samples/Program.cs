@@ -36,6 +36,10 @@ namespace Iot.Device.Modbus.Samples
             client.WriteMultipleRegisters(2, 0x5, new ushort[] { 3, 5, 2, 3 });
             client.Raw(2, FunctionCode.Diagnostics, new byte[] { 0x01, 0x01, 0x01, 0x01 });
 
+            //reading value with more than a byte length and cnverting it bach to original value
+            var result = client.ReadHoldingRegisters(2, 200, 4);
+            double sensor = Utilities.DecodeDouble(result);
+
             var data1 = client.ReadHoldingRegisters(2, 0x7, 4);
             var data2 = client.ReadCoils(2, 0x23, 2);
 
@@ -84,7 +88,29 @@ namespace Iot.Device.Modbus.Samples
             out short value)
         {
             // Similar to the code above...
-            throw new NotImplementedException();
+            switch (address)
+            {
+                case 200://sensor readout
+                    double sensorReadout1 = ReadSensor();                   
+                    value = Utilities.EncodeDouble(sensorReadout1)[0];
+                    break;
+                case 201://sensor readout
+                    double sensorReadout2 = ReadSensor();   
+                    value = Utilities.EncodeDouble(sensorReadout2)[1];
+                    break;
+                case 202://sensor readout
+                    double sensorReadout3 = ReadSensor();   
+                    value = Utilities.EncodeDouble(sensorReadout3)[2];
+                    break;
+                case 203://sensor readout
+                    double sensorReadout4 = ReadSensor();   
+                    value = Utilities.EncodeDouble(sensorReadout4)[3];
+                    break;
+                default:
+                    value = 0;
+                    return false;
+            }
+            return true;
         }
 
         protected override bool TryReadInputRegister(ushort address, out short value)
@@ -103,6 +129,44 @@ namespace Iot.Device.Modbus.Samples
         {
             // Similar to the code above...
             throw new NotImplementedException();
+        }
+    }
+
+    //utility class for encoding/decoding ushort
+    public static Utilities
+    {
+        private const int DoubleBytes = 8;
+        private const int DoubleShorts = DoubleBytes / sizeof(short);
+        
+        public static short[] EncodeDouble(double value)
+        {
+            byte[] bytes = BitConverter.GetBytes(value);
+            short[] result = new short[DoubleShorts];
+        
+            for (int i = 0; i < DoubleShorts; i++)
+            {
+                result[i] = (short)(bytes[i * 2] << 8 | bytes[i * 2 + 1]);
+            }
+        
+            return result;
+        }
+        
+        public static double DecodeDouble(short[] encodedDouble)
+        {
+            if (encodedDouble == null || encodedDouble.Length != DoubleShorts)
+            {
+                throw new ArgumentException("Invalid encoded double format.");
+            }
+        
+            byte[] bytes = new byte[DoubleBytes];
+        
+            for (int i = 0; i < DoubleShorts; i++)
+            {
+                bytes[i * 2] = (byte)(encodedDouble[i] >> 8);
+                bytes[i * 2 + 1] = (byte)(encodedDouble[i] & 0xFF);
+            }
+        
+            return BitConverter.ToDouble(bytes);
         }
     }
 }
